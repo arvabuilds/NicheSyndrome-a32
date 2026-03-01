@@ -22,6 +22,8 @@ mkdir -p "$CCACHE_DIR"
 if [ ! -f "$TOOLCHAIN_DIR/neutron-clang/bin/clang" ]; then
     echo ""
     echo "→ Downloading Neutron Clang (latest)..."
+    rm -rf "$TOOLCHAIN_DIR/neutron-clang"
+    mkdir -p "$TOOLCHAIN_DIR/neutron-clang"
 
     RELEASE_URL=$(curl -s \
         "https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest" \
@@ -32,21 +34,23 @@ assets = [a for a in data['assets'] if a['name'].endswith('.tar.zst')]
 print(assets[0]['browser_download_url'] if assets else '')
 ")
 
-    if [ -z "$RELEASE_URL" ]; then
-        echo "ERROR: Could not get Neutron Clang release URL"
-        echo "Check: https://github.com/Neutron-Toolchains/clang-build-catalogue/releases"
-        exit 1
-    fi
-
-    echo "  URL: $RELEASE_URL"
     curl -Lo /tmp/neutron-clang.tar.zst "$RELEASE_URL"
     tar -I zstd -xf /tmp/neutron-clang.tar.zst -C "$TOOLCHAIN_DIR/neutron-clang"
     rm /tmp/neutron-clang.tar.zst
 
+
+    # Download AntMan and apply the glibc compatibility patch
+    echo "→ Applying glibc compatibility patch via AntMan..."
+    curl -Lo "$TOOLCHAIN_DIR/neutron-clang/antman" \
+        "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
+    chmod +x "$TOOLCHAIN_DIR/neutron-clang/antman"
+    cd "$TOOLCHAIN_DIR/neutron-clang"
+    ./antman --patch=glibc
+    cd -
+
     echo "  Clang version: $($TOOLCHAIN_DIR/neutron-clang/bin/clang --version | head -1)"
 else
     echo "→ Neutron Clang already cached, skipping download"
-    echo "  Version: $($TOOLCHAIN_DIR/neutron-clang/bin/clang --version | head -1)"
 fi
 
 # ----------------------------------------------------------------
@@ -55,6 +59,8 @@ fi
 if [ ! -f "$TOOLCHAIN_DIR/gcc-aarch64/bin/aarch64-linux-android-gcc" ]; then
     echo ""
     echo "→ Downloading GCC aarch64..."
+    # Remove any partial/empty directory before cloning
+    rm -rf "$TOOLCHAIN_DIR/gcc-aarch64"
     git clone --depth=1 \
         https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
         "$TOOLCHAIN_DIR/gcc-aarch64"
@@ -69,6 +75,8 @@ fi
 if [ ! -f "$TOOLCHAIN_DIR/gcc-arm32/bin/arm-linux-androideabi-gcc" ]; then
     echo ""
     echo "→ Downloading GCC arm32..."
+    # Remove any partial/empty directory before cloning
+    rm -rf "$TOOLCHAIN_DIR/gcc-arm32"
     git clone --depth=1 \
         https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 \
         "$TOOLCHAIN_DIR/gcc-arm32"
