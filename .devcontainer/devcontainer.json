@@ -1,0 +1,64 @@
+{
+  "name": "A32 Kernel Builder",
+
+  // Use our custom Dockerfile rather than a pre-built image
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  // Machine type recommendation:
+  // 2-core = free tier, 60hrs/month — adequate for kernel builds (~25 min/build)
+  // 4-core = paid, builds in ~12 min — use if you have Pro or budget
+  // Do NOT set this to force a specific machine — let the user choose at creation time
+  // "hostRequirements": { "cpus": 4 },
+
+  // Mount a persistent cache volume for ccache and toolchains
+  // This survives Codespace rebuilds, saving toolchain re-download time
+  // Note: this still counts toward your 15 GB storage quota
+  "mounts": [
+    "source=a32-kernel-cache,target=/workspace-cache,type=volume"
+  ],
+
+  // Environment variables available in every terminal session
+  "containerEnv": {
+    "ARCH": "arm64",
+    "SUBARCH": "arm64",
+    "CROSS_COMPILE": "/workspace-cache/toolchains/gcc-aarch64/bin/aarch64-linux-android-",
+    "CROSS_COMPILE_ARM32": "/workspace-cache/toolchains/gcc-arm32/bin/arm-linux-androideabi-",
+    "CLANG_DIR": "/workspace-cache/toolchains/neutron-clang/bin",
+    "CCACHE_DIR": "/workspace-cache/ccache",
+    "USE_CCACHE": "1",
+    "TERM": "xterm-256color"
+  },
+
+  // Script that runs once after the container is created
+  // This is where toolchains are downloaded
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  // VS Code extensions — useful even if you SSH in, as they affect
+  // the web editor if you use it
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",        // C/C++ IntelliSense
+        "coolchyni.beyond-debug",    // GDB integration
+        "mads-hartmann.bash-ide-vscode" // Bash script support
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.tabSize": 8,         // Kernel coding style uses 8-space tabs
+        "editor.insertSpaces": false,
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+
+  // Port forwarding — not needed for kernel building but useful
+  // if you run any local HTTP servers for documentation etc.
+  "forwardPorts": [],
+
+  // Run as root — required because kernel builds touch system-level
+  // paths and some MTK scripts assume root
+  "remoteUser": "root"
+}
